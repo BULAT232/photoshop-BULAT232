@@ -1,7 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Brand } from "./components/Brand.jsx";
 import { CanvasStage } from "./components/CanvasStage.jsx";
+import { ChannelPanel } from "./components/ChannelPanel.jsx";
 import { FilePanel } from "./components/FilePanel.jsx";
+import { PixelInspector } from "./components/PixelInspector.jsx";
+import { composeVisibleImageData, createChannelState, samplePixel } from "./lib/colorChannels.js";
 import { canvasToBlob, downloadBlob } from "./lib/download.js";
 import { decodeGb7, encodeGb7, isGb7 } from "./lib/gb7.js";
 import { readRasterMetadata } from "./lib/imageMetadata.js";
@@ -35,6 +38,10 @@ export default function App() {
   const [scale, setScale] = useState(1);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
+  const [sourceImageData, setSourceImageData] = useState(null);
+  const [enabledChannels, setEnabledChannels] = useState({});
+  const [activeTool, setActiveTool] = useState("pan");
+  const [pixelSample, setPixelSample] = useState(null);
 
   const notify = useCallback((message, kind = "info") => {
     setToast({ message, kind });
@@ -42,13 +49,26 @@ export default function App() {
   }, []);
 
   const renderImage = useCallback((imageData, info) => {
-    const canvas = canvasRef.current;
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    canvas.getContext("2d", { willReadFrequently: true }).putImageData(imageData, 0, 0);
-    setDocumentInfo({ ...info, width: imageData.width, height: imageData.height });
+    const original = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+    setSourceImageData(original);
+    setDocumentInfo({ ...info, width: original.width, height: original.height });
+    setEnabledChannels(createChannelState(info.channelCount));
+    setPixelSample(null);
     setScale(1);
   }, []);
+
+  const displayImageData = useMemo(() => {
+    if (!sourceImageData || !documentInfo) return null;
+    return composeVisibleImageData(sourceImageData, enabledChannels, documentInfo.channelCount);
+  }, [documentInfo, enabledChannels, sourceImageData]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !displayImageData) return;
+    canvas.width = displayImageData.width;
+    canvas.height = displayImageData.height;
+    canvas.getContext("2d", { willReadFrequently: true }).putImageData(displayImageData, 0, 0);
+  }, [displayImageData]);
 
   const openFile = useCallback(async (file) => {
     setBusy(true);
@@ -58,12 +78,12 @@ export default function App() {
       if (isGb7(bytes) || file.name.toLowerCase().endsWith(".gb7")) {
         const decoded = decodeGb7(bytes);
         renderImage(new ImageData(decoded.data, decoded.width, decoded.height), {
-          name: file.name, format: "GB7", colorDepth: 7, hasMask: decoded.hasMask, fileSize: formatBytes(file.size),
+          name: file.name, format: "GB7", colorDepth: 7, channelCount: decoded.hasMask ? 2 : 1, hasMask: decoded.hasMask, fileSize: formatBytes(file.size),
         });
       } else {
         const { imageData, metadata } = await decodeRaster(file, buffer);
         renderImage(imageData, {
-          name: file.name, format: metadata.format, colorDepth: metadata.colorDepth, hasMask: false, fileSize: formatBytes(file.size),
+          name: file.name, format: metadata.format, colorDepth: metadata.colorDepth, channelCount: metadata.channelCount, hasMask: false, fileSize: formatBytes(file.size),
         });
       }
       notify("Изображение успешно открыто");
@@ -114,18 +134,50 @@ export default function App() {
 
   const updateScale = useCallback((value) => setScale(Math.min(4, Math.max(0.1, value))), []);
 
+  const toggleChannel = useCallback((channelId) => {
+    setEnabledChannels((current) => ({ ...current, [channelId]: !current[channelId] }));
+  }, []);
+
+  const inspectPixel = useCallback((x, y) => {
+    if (!sourceImageData) return;
+    setPixelSample(samplePixel(sourceImageData, x, y));
+  }, [sourceImageData]);
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <Brand />
-        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторная работа №1</span></div>
+        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторные работы №1–2</span></div>
       </header>
       <main className="workspace">
-        <FilePanel hasImage={Boolean(documentInfo)} busy={busy} onOpen={openFile} onExport={exportImage} />
-        <CanvasStage ref={canvasRef} documentInfo={documentInfo} scale={scale} onScaleChange={updateScale} onFit={fitImage} />
+        <aside className="sidebar" aria-label="Панель изображения">
+          <FilePanel hasImage={Boolean(documentInfo)} busy={busy} onOpen={openFile} onExport={exportImage} />
+          {sourceImageData && documentInfo && (
+            <ChannelPanel
+              imageData={sourceImageData}
+              channelCount={documentInfo.channelCount}
+              enabledChannels={enabledChannels}
+              onToggle={toggleChannel}
+            />
+          )}
+          <PixelInspector
+            sample={pixelSample}
+            active={activeTool === "eyedropper"}
+            disabled={!sourceImageData}
+            onToggle={() => setActiveTool((tool) => tool === "eyedropper" ? "pan" : "eyedropper")}
+          />
+        </aside>
+        <CanvasStage
+          ref={canvasRef}
+          documentInfo={documentInfo}
+          scale={scale}
+          activeTool={activeTool}
+          onScaleChange={updateScale}
+          onFit={fitImage}
+          onInspectPixel={inspectPixel}
+        />
       </main>
       {toast && <div className={`toast visible${toast.kind === "error" ? " error" : ""}`} role="status">{toast.message}</div>}
     </div>
   );
 }
-

@@ -13,11 +13,11 @@ export function FilePanel({ hasImage, busy, onOpen, onExport }) {
   const receiveFile = (file) => file && onOpen(file);
 
   return (
-    <aside className="sidebar" aria-label="Панель файлов">
+    <div className="file-panel">
       <section className="intro">
         <span className="eyebrow">Формат изображения</span>
         <h1>Откройте детали,<br />скрытые в пикселях.</h1>
-        <p>Загрузите изображение, изучите его параметры и сохраните в PNG, JPEG или учебном формате GB7.</p>
+        <p>Загрузите изображение, исследуйте его каналы и цвета, затем сохраните в PNG, JPEG или учебном формате GB7.</p>
       </section>
 
       <section
@@ -76,7 +76,6 @@ export function FilePanel({ hasImage, busy, onOpen, onExport }) {
           ))}
         </div>
       </section>
-    </aside>
+    </div>
   );
 }
-

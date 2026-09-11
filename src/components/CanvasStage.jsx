@@ -1,10 +1,19 @@
 import { forwardRef } from "react";
+import { clientPointToCanvasPixel } from "../lib/colorChannels.js";
 
 export const CanvasStage = forwardRef(function CanvasStage(
-  { documentInfo, scale, onScaleChange, onFit },
+  { documentInfo, scale, activeTool, onScaleChange, onFit, onInspectPixel },
   canvasRef,
 ) {
   const disabled = !documentInfo;
+  const handleCanvasClick = (event) => {
+    if (activeTool !== "eyedropper") return;
+    const canvas = event.currentTarget;
+    const bounds = canvas.getBoundingClientRect();
+    const point = clientPointToCanvasPixel(canvas.width, canvas.height, bounds, event.clientX, event.clientY);
+    if (point) onInspectPixel(point.x, point.y);
+  };
+
   return (
     <section className="stage" aria-label="Область просмотра">
       <div className="stage-toolbar">
@@ -36,6 +45,9 @@ export const CanvasStage = forwardRef(function CanvasStage(
         <div className="canvas-frame" hidden={!documentInfo}>
           <canvas
             ref={canvasRef}
+            className={activeTool === "eyedropper" ? "is-eyedropper" : ""}
+            onClick={handleCanvasClick}
+            aria-label={activeTool === "eyedropper" ? "Изображение: нажмите, чтобы определить цвет пикселя" : "Открытое изображение"}
             style={{ width: documentInfo ? Math.round(documentInfo.width * scale) : 0, height: documentInfo ? Math.round(documentInfo.height * scale) : 0 }}
           >Ваш браузер не поддерживает Canvas.</canvas>
         </div>
@@ -52,4 +64,3 @@ export const CanvasStage = forwardRef(function CanvasStage(
     </section>
   );
 });
-

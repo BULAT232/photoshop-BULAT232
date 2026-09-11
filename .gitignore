@@ -4,3 +4,4 @@ dist/
 coverage/
 *.VSIXPackage
 .DS_Store
+

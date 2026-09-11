@@ -3,9 +3,16 @@ function parsePng(bytes) {
   if (bytes.length < 29 || !signature.every((byte, index) => bytes[index] === byte)) return null;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const bitDepth = bytes[24];
-  const channels = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[bytes[25]];
+  const colorType = bytes[25];
+  const channels = { 0: 1, 2: 3, 3: 3, 4: 2, 6: 4 }[colorType];
   if (!channels) return null;
-  return { format: "PNG", width: view.getUint32(16, false), height: view.getUint32(20, false), colorDepth: bitDepth * channels };
+  return {
+    format: "PNG",
+    width: view.getUint32(16, false),
+    height: view.getUint32(20, false),
+    colorDepth: bitDepth * channels,
+    channelCount: channels,
+  };
 }
 
 function parseJpeg(bytes) {
@@ -25,11 +32,13 @@ function parseJpeg(bytes) {
     const length = view.getUint16(offset, false);
     if (length < 2 || offset + length > bytes.length) break;
     if (startOfFrame.has(marker) && length >= 8) {
+      const components = bytes[offset + 7];
       return {
         format: "JPEG",
         width: view.getUint16(offset + 5, false),
         height: view.getUint16(offset + 3, false),
-        colorDepth: bytes[offset + 2] * bytes[offset + 7],
+        colorDepth: bytes[offset + 2] * components,
+        channelCount: components === 1 ? 1 : 3,
       };
     }
     offset += length;
@@ -41,5 +50,3 @@ export function readRasterMetadata(input) {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   return parsePng(bytes) ?? parseJpeg(bytes);
 }
-
-

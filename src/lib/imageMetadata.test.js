@@ -10,12 +10,16 @@ describe("raster metadata", () => {
     view.setUint32(20, 240, false);
     png[24] = 8;
     png[25] = 6;
-    expect(readRasterMetadata(png)).toEqual({ format: "PNG", width: 320, height: 240, colorDepth: 32 });
+    expect(readRasterMetadata(png)).toEqual({
+      format: "PNG",
+      width: 320,
+      height: 240,
+      colorDepth: 32,
+      channelCount: 4,
+    });
   });
 
   it("rejects unrelated data", () => {
     expect(readRasterMetadata(Uint8Array.of(1, 2, 3))).toBeNull();
   });
 });
-
-

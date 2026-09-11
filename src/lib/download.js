@@ -9,8 +9,7 @@ export function downloadBlob(blob, filename) {
 
 export function canvasToBlob(canvas, type, quality) {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Р‘СЂР°СѓР·РµСЂ РЅРµ СЃРјРѕРі СЃС„РѕСЂРјРёСЂРѕРІР°С‚СЊ С„Р°Р№Р»")), type, quality);
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Браузер не смог сформировать файл")), type, quality);
   });
 }
-
 

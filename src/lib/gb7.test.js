@@ -28,10 +28,9 @@ describe("GrayBit-7 codec", () => {
   });
 
   it("rejects an invalid signature and truncated pixel data", () => {
-    expect(() => decodeGb7(new Uint8Array(12))).toThrow(/РЎРёРіРЅР°С‚СѓСЂР°/);
+    expect(() => decodeGb7(new Uint8Array(12))).toThrow(/Сигнатура/);
     const valid = encodeGb7(image(1, 1, [0, 0, 0, 255]));
-    expect(() => decodeGb7(valid.slice(0, -1))).toThrow(/РґР»РёРЅР°/);
+    expect(() => decodeGb7(valid.slice(0, -1))).toThrow(/длина/);
   });
 });
-
 

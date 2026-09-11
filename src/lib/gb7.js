@@ -11,10 +11,10 @@ export class Gb7Error extends Error {
 
 function validateDimensions(width, height) {
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
-    throw new Gb7Error("РЁРёСЂРёРЅР° Рё РІС‹СЃРѕС‚Р° РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РїРѕР»РѕР¶РёС‚РµР»СЊРЅС‹РјРё С†РµР»С‹РјРё С‡РёСЃР»Р°РјРё");
+    throw new Gb7Error("Ширина и высота должны быть положительными целыми числами");
   }
   if (width > 0xffff || height > 0xffff) {
-    throw new Gb7Error("GB7 РїРѕРґРґРµСЂР¶РёРІР°РµС‚ СЂР°Р·РјРµСЂС‹ РЅРµ Р±РѕР»РµРµ 65 535 РїРёРєСЃРµР»РµР№");
+    throw new Gb7Error("GB7 поддерживает размеры не более 65 535 пикселей");
   }
 }
 
@@ -26,7 +26,7 @@ export function encodeGb7(imageData) {
   const { width, height, data } = imageData;
   validateDimensions(width, height);
   if (!(data instanceof Uint8ClampedArray) || data.length !== width * height * 4) {
-    throw new Gb7Error("РџРѕР»СѓС‡РµРЅ РЅРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ RGBA-Р±СѓС„РµСЂ");
+    throw new Gb7Error("Получен некорректный RGBA-буфер");
   }
 
   let hasMask = false;
@@ -56,11 +56,11 @@ export function encodeGb7(imageData) {
 
 export function decodeGb7(input) {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
-  if (bytes.length < HEADER_SIZE) throw new Gb7Error("Р¤Р°Р№Р» РєРѕСЂРѕС‡Рµ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРіРѕ Р·Р°РіРѕР»РѕРІРєР° GB7");
-  if (!isGb7(bytes)) throw new Gb7Error("РЎРёРіРЅР°С‚СѓСЂР° С„Р°Р№Р»Р° РЅРµ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ GB7");
-  if (bytes[4] !== VERSION) throw new Gb7Error(`Р’РµСЂСЃРёСЏ GB7 ${bytes[4]} РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ`);
-  if ((bytes[5] & 0xfe) !== 0) throw new Gb7Error("Р’ Р·Р°РіРѕР»РѕРІРєРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅС‹ РЅРµРёР·РІРµСЃС‚РЅС‹Рµ С„Р»Р°РіРё");
-  if (bytes[10] !== 0 || bytes[11] !== 0) throw new Gb7Error("Р РµР·РµСЂРІРЅС‹Рµ Р±Р°Р№С‚С‹ GB7 РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РЅСѓР»РµРІС‹РјРё");
+  if (bytes.length < HEADER_SIZE) throw new Gb7Error("Файл короче обязательного заголовка GB7");
+  if (!isGb7(bytes)) throw new Gb7Error("Сигнатура файла не соответствует GB7");
+  if (bytes[4] !== VERSION) throw new Gb7Error(`Версия GB7 ${bytes[4]} не поддерживается`);
+  if ((bytes[5] & 0xfe) !== 0) throw new Gb7Error("В заголовке установлены неизвестные флаги");
+  if (bytes[10] !== 0 || bytes[11] !== 0) throw new Gb7Error("Резервные байты GB7 должны быть нулевыми");
 
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const width = view.getUint16(6, false);
@@ -68,7 +68,7 @@ export function decodeGb7(input) {
   validateDimensions(width, height);
   const expectedLength = HEADER_SIZE + width * height;
   if (bytes.length !== expectedLength) {
-    throw new Gb7Error(`РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ РґР»РёРЅР° GB7: РѕР¶РёРґР°Р»РѕСЃСЊ ${expectedLength}, РїРѕР»СѓС‡РµРЅРѕ ${bytes.length}`);
+    throw new Gb7Error(`Некорректная длина GB7: ожидалось ${expectedLength}, получено ${bytes.length}`);
   }
 
   const hasMask = (bytes[5] & 1) === 1;
@@ -84,5 +84,4 @@ export function decodeGb7(input) {
 
   return { width, height, data: rgba, hasMask, colorDepth: 7 };
 }
-
 

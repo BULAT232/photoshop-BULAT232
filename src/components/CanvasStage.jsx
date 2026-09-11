@@ -6,20 +6,20 @@ export const CanvasStage = forwardRef(function CanvasStage(
 ) {
   const disabled = !documentInfo;
   return (
-    <section className="stage" aria-label="РћР±Р»Р°СЃС‚СЊ РїСЂРѕСЃРјРѕС‚СЂР°">
+    <section className="stage" aria-label="Область просмотра">
       <div className="stage-toolbar">
         <div className="file-identity">
           <span className={`file-dot${documentInfo ? " active" : ""}`} aria-hidden="true" />
           <div>
-            <strong>{documentInfo?.name ?? "РќРµС‚ РѕС‚РєСЂС‹С‚РѕРіРѕ С„Р°Р№Р»Р°"}</strong>
-            <span>{documentInfo ? `${documentInfo.format} В· ${documentInfo.fileSize}` : "Р’С‹Р±РµСЂРёС‚Рµ РёР·РѕР±СЂР°Р¶РµРЅРёРµ СЃР»РµРІР°"}</span>
+            <strong>{documentInfo?.name ?? "Нет открытого файла"}</strong>
+            <span>{documentInfo ? `${documentInfo.format} · ${documentInfo.fileSize}` : "Выберите изображение слева"}</span>
           </div>
         </div>
-        <div className="zoom-controls" aria-label="РњР°СЃС€С‚Р°Р±">
-          <button type="button" aria-label="РЈРјРµРЅСЊС€РёС‚СЊ РјР°СЃС€С‚Р°Р±" disabled={disabled} onClick={() => onScaleChange(scale / 1.25)}>в€’</button>
+        <div className="zoom-controls" aria-label="Масштаб">
+          <button type="button" aria-label="Уменьшить масштаб" disabled={disabled} onClick={() => onScaleChange(scale / 1.25)}>−</button>
           <output>{Math.round(scale * 100)}%</output>
-          <button type="button" aria-label="РЈРІРµР»РёС‡РёС‚СЊ РјР°СЃС€С‚Р°Р±" disabled={disabled} onClick={() => onScaleChange(scale * 1.25)}>+</button>
-          <button className="fit-button" type="button" disabled={disabled} onClick={onFit}>Р’РїРёСЃР°С‚СЊ</button>
+          <button type="button" aria-label="Увеличить масштаб" disabled={disabled} onClick={() => onScaleChange(scale * 1.25)}>+</button>
+          <button className="fit-button" type="button" disabled={disabled} onClick={onFit}>Вписать</button>
         </div>
       </div>
 
@@ -29,28 +29,27 @@ export const CanvasStage = forwardRef(function CanvasStage(
             <div className="pixel-art" aria-hidden="true">
               {Array.from({ length: 9 }, (_, index) => <span key={index} />)}
             </div>
-            <strong>РҐРѕР»СЃС‚ Р¶РґС‘С‚ РёР·РѕР±СЂР°Р¶РµРЅРёРµ</strong>
-            <p>PNG, JPEG РёР»Рё GrayBit-7<br />РІ РїСЂРµРґРµР»Р°С… РїР°РјСЏС‚Рё Р±СЂР°СѓР·РµСЂР°.</p>
+            <strong>Холст ждёт изображение</strong>
+            <p>PNG, JPEG или GrayBit-7<br />в пределах памяти браузера.</p>
           </div>
         )}
         <div className="canvas-frame" hidden={!documentInfo}>
           <canvas
             ref={canvasRef}
             style={{ width: documentInfo ? Math.round(documentInfo.width * scale) : 0, height: documentInfo ? Math.round(documentInfo.height * scale) : 0 }}
-          >Р’Р°С€ Р±СЂР°СѓР·РµСЂ РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ Canvas.</canvas>
+          >Ваш браузер не поддерживает Canvas.</canvas>
         </div>
       </div>
 
       <footer className="statusbar" aria-live="polite">
-        <div className="status-item"><span>Р Р°Р·РјРµСЂ</span><strong>{documentInfo ? `${documentInfo.width} Г— ${documentInfo.height} px` : "вЂ”"}</strong></div>
+        <div className="status-item"><span>Размер</span><strong>{documentInfo ? `${documentInfo.width} × ${documentInfo.height} px` : "—"}</strong></div>
         <div className="status-divider" />
-        <div className="status-item"><span>Р“Р»СѓР±РёРЅР° С†РІРµС‚Р°</span><strong>{documentInfo ? `${documentInfo.colorDepth} Р±РёС‚` : "вЂ”"}</strong></div>
+        <div className="status-item"><span>Глубина цвета</span><strong>{documentInfo ? `${documentInfo.colorDepth} бит` : "—"}</strong></div>
         <div className="status-divider" />
-        <div className="status-item"><span>Р¤РѕСЂРјР°С‚</span><strong>{documentInfo?.format ?? "вЂ”"}</strong></div>
-        <p>{documentInfo?.hasMask ? "РџСЂРёСЃСѓС‚СЃС‚РІСѓРµС‚ Р±РёРЅР°СЂРЅР°СЏ РјР°СЃРєР°" : documentInfo ? "РР·РѕР±СЂР°Р¶РµРЅРёРµ Р·Р°РіСЂСѓР¶РµРЅРѕ" : "Р“РѕС‚РѕРІРѕ Рє СЂР°Р±РѕС‚Рµ"}</p>
+        <div className="status-item"><span>Формат</span><strong>{documentInfo?.format ?? "—"}</strong></div>
+        <p>{documentInfo?.hasMask ? "Присутствует бинарная маска" : documentInfo ? "Изображение загружено" : "Готово к работе"}</p>
       </footer>
     </section>
   );
 });
-
 

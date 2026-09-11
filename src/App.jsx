@@ -7,9 +7,9 @@ import { decodeGb7, encodeGb7, isGb7 } from "./lib/gb7.js";
 import { readRasterMetadata } from "./lib/imageMetadata.js";
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} Р‘`;
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} РљР‘`;
-  return `${(bytes / 1024 ** 2).toFixed(1)} РњР‘`;
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} КБ`;
+  return `${(bytes / 1024 ** 2).toFixed(1)} МБ`;
 }
 
 function fileBaseName(name) {
@@ -18,7 +18,7 @@ function fileBaseName(name) {
 
 async function decodeRaster(file, buffer) {
   const metadata = readRasterMetadata(buffer);
-  if (!metadata) throw new Error("Р¤Р°Р№Р» РЅРµ СЏРІР»СЏРµС‚СЃСЏ РєРѕСЂСЂРµРєС‚РЅС‹Рј PNG РёР»Рё JPEG");
+  if (!metadata) throw new Error("Файл не является корректным PNG или JPEG");
   const bitmap = await createImageBitmap(file);
   const temporary = document.createElement("canvas");
   temporary.width = bitmap.width;
@@ -66,9 +66,9 @@ export default function App() {
           name: file.name, format: metadata.format, colorDepth: metadata.colorDepth, hasMask: false, fileSize: formatBytes(file.size),
         });
       }
-      notify("РР·РѕР±СЂР°Р¶РµРЅРёРµ СѓСЃРїРµС€РЅРѕ РѕС‚РєСЂС‹С‚Рѕ");
+      notify("Изображение успешно открыто");
     } catch (error) {
-      notify(error instanceof Error ? error.message : "РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕС‡РёС‚Р°С‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ", "error");
+      notify(error instanceof Error ? error.message : "Не удалось прочитать изображение", "error");
     } finally {
       setBusy(false);
     }
@@ -98,9 +98,9 @@ export default function App() {
         const blob = await canvasToBlob(exportCanvas, mime, 0.92);
         downloadBlob(blob, `${name}.${format}`);
       }
-      notify(`Р¤Р°Р№Р» ${format.toUpperCase()} РїРѕРґРіРѕС‚РѕРІР»РµРЅ`);
+      notify(`Файл ${format.toUpperCase()} подготовлен`);
     } catch (error) {
-      notify(error instanceof Error ? error.message : "РћС€РёР±РєР° СЌРєСЃРїРѕСЂС‚Р°", "error");
+      notify(error instanceof Error ? error.message : "Ошибка экспорта", "error");
     }
   }, [documentInfo, notify]);
 
@@ -118,7 +118,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <Brand />
-        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Р›Р°Р±РѕСЂР°С‚РѕСЂРЅР°СЏ СЂР°Р±РѕС‚Р° в„–1</span></div>
+        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторная работа №1</span></div>
       </header>
       <main className="workspace">
         <FilePanel hasImage={Boolean(documentInfo)} busy={busy} onOpen={openFile} onExport={exportImage} />
@@ -128,5 +128,4 @@ export default function App() {
     </div>
   );
 }
-
 

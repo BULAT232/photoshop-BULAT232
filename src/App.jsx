@@ -5,10 +5,12 @@ import { ChannelPanel } from "./components/ChannelPanel.jsx";
 import { FilePanel } from "./components/FilePanel.jsx";
 import { LevelsDialog } from "./components/LevelsDialog.jsx";
 import { PixelInspector } from "./components/PixelInspector.jsx";
+import { ResizeDialog } from "./components/ResizeDialog.jsx";
 import { composeVisibleImageData, createChannelState, samplePixel } from "./lib/colorChannels.js";
 import { canvasToBlob, downloadBlob } from "./lib/download.js";
 import { decodeGb7, encodeGb7, isGb7 } from "./lib/gb7.js";
 import { readRasterMetadata } from "./lib/imageMetadata.js";
+import { calculateFitScale, MAX_VIEW_SCALE, MIN_VIEW_SCALE, resizeImageData } from "./lib/interpolation.js";
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} Б`;
@@ -45,6 +47,8 @@ export default function App() {
   const [pixelSample, setPixelSample] = useState(null);
   const [levelsOpen, setLevelsOpen] = useState(false);
   const [levelsPreview, setLevelsPreview] = useState(null);
+  const [resizeOpen, setResizeOpen] = useState(false);
+  const [viewInterpolation, setViewInterpolation] = useState("bilinear");
 
   const notify = useCallback((message, kind = "info") => {
     setToast({ message, kind });
@@ -59,7 +63,11 @@ export default function App() {
     setPixelSample(null);
     setLevelsPreview(null);
     setLevelsOpen(false);
-    setScale(1);
+    setResizeOpen(false);
+    window.requestAnimationFrame(() => {
+      const viewport = document.querySelector(".canvas-viewport");
+      if (viewport) setScale(calculateFitScale(original.width, original.height, viewport.clientWidth, viewport.clientHeight));
+    });
   }, []);
 
   const workingImageData = levelsPreview ?? sourceImageData;
@@ -68,13 +76,20 @@ export default function App() {
     return composeVisibleImageData(workingImageData, enabledChannels, documentInfo.channelCount);
   }, [documentInfo, enabledChannels, workingImageData]);
 
+  const scaledImageData = useMemo(() => {
+    if (!displayImageData) return null;
+    const width = Math.max(1, Math.round(displayImageData.width * scale));
+    const height = Math.max(1, Math.round(displayImageData.height * scale));
+    return resizeImageData(displayImageData, width, height, viewInterpolation);
+  }, [displayImageData, scale, viewInterpolation]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !displayImageData) return;
-    canvas.width = displayImageData.width;
-    canvas.height = displayImageData.height;
-    canvas.getContext("2d", { willReadFrequently: true }).putImageData(displayImageData, 0, 0);
-  }, [displayImageData]);
+    if (!canvas || !scaledImageData) return;
+    canvas.width = scaledImageData.width;
+    canvas.height = scaledImageData.height;
+    canvas.getContext("2d", { willReadFrequently: true }).putImageData(scaledImageData, 0, 0);
+  }, [scaledImageData]);
 
   const openFile = useCallback(async (file) => {
     setBusy(true);
@@ -101,20 +116,22 @@ export default function App() {
   }, [notify, renderImage]);
 
   const exportImage = useCallback(async (format) => {
-    if (!documentInfo || !canvasRef.current) return;
+    if (!documentInfo || !displayImageData) return;
     try {
-      const sourceCanvas = canvasRef.current;
       const name = fileBaseName(documentInfo.name);
       if (format === "gb7") {
-        const context = sourceCanvas.getContext("2d", { willReadFrequently: true });
-        const bytes = encodeGb7(context.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height));
+        const bytes = encodeGb7(displayImageData);
         downloadBlob(new Blob([bytes], { type: "application/octet-stream" }), `${name}.gb7`);
       } else {
+        const sourceCanvas = document.createElement("canvas");
+        sourceCanvas.width = displayImageData.width;
+        sourceCanvas.height = displayImageData.height;
+        sourceCanvas.getContext("2d").putImageData(displayImageData, 0, 0);
         let exportCanvas = sourceCanvas;
         if (format === "jpg") {
           exportCanvas = document.createElement("canvas");
-          exportCanvas.width = sourceCanvas.width;
-          exportCanvas.height = sourceCanvas.height;
+          exportCanvas.width = displayImageData.width;
+          exportCanvas.height = displayImageData.height;
           const context = exportCanvas.getContext("2d");
           context.fillStyle = "#ffffff";
           context.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
@@ -128,26 +145,26 @@ export default function App() {
     } catch (error) {
       notify(error instanceof Error ? error.message : "Ошибка экспорта", "error");
     }
-  }, [documentInfo, notify]);
+  }, [displayImageData, documentInfo, notify]);
 
   const fitImage = useCallback(() => {
     const viewport = document.querySelector(".canvas-viewport");
     if (!documentInfo || !viewport) return;
-    const availableWidth = Math.max(80, viewport.clientWidth - 96);
-    const availableHeight = Math.max(80, viewport.clientHeight - 96);
-    setScale(Math.min(1, availableWidth / documentInfo.width, availableHeight / documentInfo.height));
+    setScale(calculateFitScale(documentInfo.width, documentInfo.height, viewport.clientWidth, viewport.clientHeight));
   }, [documentInfo]);
 
-  const updateScale = useCallback((value) => setScale(Math.min(4, Math.max(0.1, value))), []);
+  const updateScale = useCallback((value) => setScale(Math.min(MAX_VIEW_SCALE, Math.max(MIN_VIEW_SCALE, value))), []);
 
   const toggleChannel = useCallback((channelId) => {
     setEnabledChannels((current) => ({ ...current, [channelId]: !current[channelId] }));
   }, []);
 
   const inspectPixel = useCallback((x, y) => {
-    if (!sourceImageData) return;
-    setPixelSample(samplePixel(sourceImageData, x, y));
-  }, [sourceImageData]);
+    if (!sourceImageData || !scaledImageData) return;
+    const sourceX = Math.min(sourceImageData.width - 1, Math.floor(x * sourceImageData.width / scaledImageData.width));
+    const sourceY = Math.min(sourceImageData.height - 1, Math.floor(y * sourceImageData.height / scaledImageData.height));
+    setPixelSample(samplePixel(sourceImageData, sourceX, sourceY));
+  }, [scaledImageData, sourceImageData]);
 
   const applyLevelChanges = useCallback((imageData) => {
     setSourceImageData(imageData);
@@ -157,11 +174,19 @@ export default function App() {
     notify("Тональная коррекция применена");
   }, [notify]);
 
+  const applyResize = useCallback((imageData) => {
+    setSourceImageData(imageData);
+    setDocumentInfo((current) => ({ ...current, width: imageData.width, height: imageData.height }));
+    setResizeOpen(false);
+    setPixelSample(null);
+    notify(`Размер изменён: ${imageData.width} × ${imageData.height} px`);
+  }, [notify]);
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <Brand />
-        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторные работы №1–3</span></div>
+        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторные работы №1–4</span></div>
       </header>
       <main className="workspace">
         <aside className="sidebar" aria-label="Панель изображения">
@@ -190,6 +215,9 @@ export default function App() {
           onFit={fitImage}
           onInspectPixel={inspectPixel}
           onOpenLevels={() => setLevelsOpen(true)}
+          onOpenResize={() => setResizeOpen(true)}
+          interpolation={viewInterpolation}
+          onInterpolationChange={setViewInterpolation}
         />
       </main>
       {sourceImageData && documentInfo && (
@@ -200,6 +228,14 @@ export default function App() {
           onPreview={setLevelsPreview}
           onApply={applyLevelChanges}
           onCancel={() => setLevelsOpen(false)}
+        />
+      )}
+      {sourceImageData && (
+        <ResizeDialog
+          open={resizeOpen}
+          imageData={sourceImageData}
+          onApply={applyResize}
+          onCancel={() => setResizeOpen(false)}
         />
       )}
       {toast && <div className={`toast visible${toast.kind === "error" ? " error" : ""}`} role="status">{toast.message}</div>}

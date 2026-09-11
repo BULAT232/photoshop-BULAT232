@@ -1,8 +1,9 @@
 import { forwardRef } from "react";
 import { clientPointToCanvasPixel } from "../lib/colorChannels.js";
+import { INTERPOLATION_METHODS } from "../lib/interpolation.js";
 
 export const CanvasStage = forwardRef(function CanvasStage(
-  { documentInfo, scale, activeTool, onScaleChange, onFit, onInspectPixel, onOpenLevels },
+  { documentInfo, scale, activeTool, interpolation, onScaleChange, onFit, onInspectPixel, onOpenLevels, onOpenResize, onInterpolationChange },
   canvasRef,
 ) {
   const disabled = !documentInfo;
@@ -26,6 +27,7 @@ export const CanvasStage = forwardRef(function CanvasStage(
         </div>
         <div className="stage-controls">
           <button className="levels-button" type="button" disabled={disabled} onClick={onOpenLevels}><span aria-hidden="true">◒</span> Уровни</button>
+          <button className="levels-button" type="button" disabled={disabled} onClick={onOpenResize}><span aria-hidden="true">↗</span> Размер</button>
           <div className="zoom-controls" aria-label="Масштаб">
             <button type="button" aria-label="Уменьшить масштаб" disabled={disabled} onClick={() => onScaleChange(scale / 1.25)}>−</button>
             <output>{Math.round(scale * 100)}%</output>
@@ -62,7 +64,14 @@ export const CanvasStage = forwardRef(function CanvasStage(
         <div className="status-item"><span>Глубина цвета</span><strong>{documentInfo ? `${documentInfo.colorDepth} бит` : "—"}</strong></div>
         <div className="status-divider" />
         <div className="status-item"><span>Формат</span><strong>{documentInfo?.format ?? "—"}</strong></div>
-        <p>{documentInfo?.hasMask ? "Присутствует бинарная маска" : documentInfo ? "Изображение загружено" : "Готово к работе"}</p>
+        <div className="view-scale-control">
+          <label htmlFor="view-scale">Масштаб</label>
+          <input id="view-scale" type="range" min="12" max="300" step="1" value={Math.round(scale * 100)} disabled={disabled} onChange={(event) => onScaleChange(Number(event.target.value) / 100)} />
+          <output>{Math.round(scale * 100)}%</output>
+          <select aria-label="Интерполяция отображения" value={interpolation} disabled={disabled} onChange={(event) => onInterpolationChange(event.target.value)}>
+            {Object.values(INTERPOLATION_METHODS).map((method) => <option value={method.id} key={method.id}>{method.label}</option>)}
+          </select>
+        </div>
       </footer>
     </section>
   );

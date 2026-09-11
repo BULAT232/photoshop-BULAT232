@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Brand } from "./components/Brand.jsx";
 import { CanvasStage } from "./components/CanvasStage.jsx";
 import { ChannelPanel } from "./components/ChannelPanel.jsx";
+import { FilterDialog } from "./components/FilterDialog.jsx";
 import { FilePanel } from "./components/FilePanel.jsx";
 import { LevelsDialog } from "./components/LevelsDialog.jsx";
 import { PixelInspector } from "./components/PixelInspector.jsx";
@@ -49,6 +50,8 @@ export default function App() {
   const [levelsPreview, setLevelsPreview] = useState(null);
   const [resizeOpen, setResizeOpen] = useState(false);
   const [viewInterpolation, setViewInterpolation] = useState("bilinear");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterPreview, setFilterPreview] = useState(null);
 
   const notify = useCallback((message, kind = "info") => {
     setToast({ message, kind });
@@ -64,13 +67,15 @@ export default function App() {
     setLevelsPreview(null);
     setLevelsOpen(false);
     setResizeOpen(false);
+    setFilterOpen(false);
+    setFilterPreview(null);
     window.requestAnimationFrame(() => {
       const viewport = document.querySelector(".canvas-viewport");
       if (viewport) setScale(calculateFitScale(original.width, original.height, viewport.clientWidth, viewport.clientHeight));
     });
   }, []);
 
-  const workingImageData = levelsPreview ?? sourceImageData;
+  const workingImageData = filterPreview ?? levelsPreview ?? sourceImageData;
   const displayImageData = useMemo(() => {
     if (!workingImageData || !documentInfo) return null;
     return composeVisibleImageData(workingImageData, enabledChannels, documentInfo.channelCount);
@@ -182,11 +187,19 @@ export default function App() {
     notify(`Размер изменён: ${imageData.width} × ${imageData.height} px`);
   }, [notify]);
 
+  const applyFilter = useCallback((imageData) => {
+    setSourceImageData(imageData);
+    setFilterPreview(null);
+    setFilterOpen(false);
+    setPixelSample(null);
+    notify("Фильтр применён к изображению");
+  }, [notify]);
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <Brand />
-        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторные работы №1–4</span></div>
+        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторные работы №1–5</span></div>
       </header>
       <main className="workspace">
         <aside className="sidebar" aria-label="Панель изображения">
@@ -216,6 +229,7 @@ export default function App() {
           onInspectPixel={inspectPixel}
           onOpenLevels={() => setLevelsOpen(true)}
           onOpenResize={() => setResizeOpen(true)}
+          onOpenFilter={() => setFilterOpen(true)}
           interpolation={viewInterpolation}
           onInterpolationChange={setViewInterpolation}
         />
@@ -236,6 +250,16 @@ export default function App() {
           imageData={sourceImageData}
           onApply={applyResize}
           onCancel={() => setResizeOpen(false)}
+        />
+      )}
+      {sourceImageData && documentInfo && (
+        <FilterDialog
+          open={filterOpen}
+          imageData={sourceImageData}
+          channelCount={documentInfo.channelCount}
+          onPreview={setFilterPreview}
+          onApply={applyFilter}
+          onCancel={() => setFilterOpen(false)}
         />
       )}
       {toast && <div className={`toast visible${toast.kind === "error" ? " error" : ""}`} role="status">{toast.message}</div>}

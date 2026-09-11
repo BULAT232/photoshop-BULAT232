@@ -3,7 +3,7 @@ import { clientPointToCanvasPixel } from "../lib/colorChannels.js";
 import { INTERPOLATION_METHODS } from "../lib/interpolation.js";
 
 export const CanvasStage = forwardRef(function CanvasStage(
-  { documentInfo, scale, activeTool, interpolation, onScaleChange, onFit, onInspectPixel, onOpenLevels, onOpenResize, onInterpolationChange },
+  { documentInfo, scale, activeTool, interpolation, onScaleChange, onFit, onInspectPixel, onOpenLevels, onOpenResize, onOpenFilter, onInterpolationChange },
   canvasRef,
 ) {
   const disabled = !documentInfo;
@@ -28,6 +28,7 @@ export const CanvasStage = forwardRef(function CanvasStage(
         <div className="stage-controls">
           <button className="levels-button" type="button" disabled={disabled} onClick={onOpenLevels}><span aria-hidden="true">◒</span> Уровни</button>
           <button className="levels-button" type="button" disabled={disabled} onClick={onOpenResize}><span aria-hidden="true">↗</span> Размер</button>
+          <button className="levels-button" type="button" disabled={disabled} onClick={onOpenFilter}><span aria-hidden="true">⌗</span> Фильтр</button>
           <div className="zoom-controls" aria-label="Масштаб">
             <button type="button" aria-label="Уменьшить масштаб" disabled={disabled} onClick={() => onScaleChange(scale / 1.25)}>−</button>
             <output>{Math.round(scale * 100)}%</output>

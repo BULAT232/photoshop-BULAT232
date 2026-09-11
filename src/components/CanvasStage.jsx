@@ -2,7 +2,7 @@ import { forwardRef } from "react";
 import { clientPointToCanvasPixel } from "../lib/colorChannels.js";
 
 export const CanvasStage = forwardRef(function CanvasStage(
-  { documentInfo, scale, activeTool, onScaleChange, onFit, onInspectPixel },
+  { documentInfo, scale, activeTool, onScaleChange, onFit, onInspectPixel, onOpenLevels },
   canvasRef,
 ) {
   const disabled = !documentInfo;
@@ -24,11 +24,14 @@ export const CanvasStage = forwardRef(function CanvasStage(
             <span>{documentInfo ? `${documentInfo.format} · ${documentInfo.fileSize}` : "Выберите изображение слева"}</span>
           </div>
         </div>
-        <div className="zoom-controls" aria-label="Масштаб">
-          <button type="button" aria-label="Уменьшить масштаб" disabled={disabled} onClick={() => onScaleChange(scale / 1.25)}>−</button>
-          <output>{Math.round(scale * 100)}%</output>
-          <button type="button" aria-label="Увеличить масштаб" disabled={disabled} onClick={() => onScaleChange(scale * 1.25)}>+</button>
-          <button className="fit-button" type="button" disabled={disabled} onClick={onFit}>Вписать</button>
+        <div className="stage-controls">
+          <button className="levels-button" type="button" disabled={disabled} onClick={onOpenLevels}><span aria-hidden="true">◒</span> Уровни</button>
+          <div className="zoom-controls" aria-label="Масштаб">
+            <button type="button" aria-label="Уменьшить масштаб" disabled={disabled} onClick={() => onScaleChange(scale / 1.25)}>−</button>
+            <output>{Math.round(scale * 100)}%</output>
+            <button type="button" aria-label="Увеличить масштаб" disabled={disabled} onClick={() => onScaleChange(scale * 1.25)}>+</button>
+            <button className="fit-button" type="button" disabled={disabled} onClick={onFit}>Вписать</button>
+          </div>
         </div>
       </div>
 

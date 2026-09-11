@@ -3,6 +3,7 @@ import { Brand } from "./components/Brand.jsx";
 import { CanvasStage } from "./components/CanvasStage.jsx";
 import { ChannelPanel } from "./components/ChannelPanel.jsx";
 import { FilePanel } from "./components/FilePanel.jsx";
+import { LevelsDialog } from "./components/LevelsDialog.jsx";
 import { PixelInspector } from "./components/PixelInspector.jsx";
 import { composeVisibleImageData, createChannelState, samplePixel } from "./lib/colorChannels.js";
 import { canvasToBlob, downloadBlob } from "./lib/download.js";
@@ -42,6 +43,8 @@ export default function App() {
   const [enabledChannels, setEnabledChannels] = useState({});
   const [activeTool, setActiveTool] = useState("pan");
   const [pixelSample, setPixelSample] = useState(null);
+  const [levelsOpen, setLevelsOpen] = useState(false);
+  const [levelsPreview, setLevelsPreview] = useState(null);
 
   const notify = useCallback((message, kind = "info") => {
     setToast({ message, kind });
@@ -54,13 +57,16 @@ export default function App() {
     setDocumentInfo({ ...info, width: original.width, height: original.height });
     setEnabledChannels(createChannelState(info.channelCount));
     setPixelSample(null);
+    setLevelsPreview(null);
+    setLevelsOpen(false);
     setScale(1);
   }, []);
 
+  const workingImageData = levelsPreview ?? sourceImageData;
   const displayImageData = useMemo(() => {
-    if (!sourceImageData || !documentInfo) return null;
-    return composeVisibleImageData(sourceImageData, enabledChannels, documentInfo.channelCount);
-  }, [documentInfo, enabledChannels, sourceImageData]);
+    if (!workingImageData || !documentInfo) return null;
+    return composeVisibleImageData(workingImageData, enabledChannels, documentInfo.channelCount);
+  }, [documentInfo, enabledChannels, workingImageData]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -143,18 +149,26 @@ export default function App() {
     setPixelSample(samplePixel(sourceImageData, x, y));
   }, [sourceImageData]);
 
+  const applyLevelChanges = useCallback((imageData) => {
+    setSourceImageData(imageData);
+    setLevelsPreview(null);
+    setLevelsOpen(false);
+    setPixelSample(null);
+    notify("Тональная коррекция применена");
+  }, [notify]);
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <Brand />
-        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторные работы №1–2</span></div>
+        <div className="topbar-meta"><span className="indicator" aria-hidden="true" /><span>Лабораторные работы №1–3</span></div>
       </header>
       <main className="workspace">
         <aside className="sidebar" aria-label="Панель изображения">
           <FilePanel hasImage={Boolean(documentInfo)} busy={busy} onOpen={openFile} onExport={exportImage} />
-          {sourceImageData && documentInfo && (
+          {workingImageData && documentInfo && (
             <ChannelPanel
-              imageData={sourceImageData}
+              imageData={workingImageData}
               channelCount={documentInfo.channelCount}
               enabledChannels={enabledChannels}
               onToggle={toggleChannel}
@@ -175,8 +189,19 @@ export default function App() {
           onScaleChange={updateScale}
           onFit={fitImage}
           onInspectPixel={inspectPixel}
+          onOpenLevels={() => setLevelsOpen(true)}
         />
       </main>
+      {sourceImageData && documentInfo && (
+        <LevelsDialog
+          open={levelsOpen}
+          imageData={sourceImageData}
+          channelCount={documentInfo.channelCount}
+          onPreview={setLevelsPreview}
+          onApply={applyLevelChanges}
+          onCancel={() => setLevelsOpen(false)}
+        />
+      )}
       {toast && <div className={`toast visible${toast.kind === "error" ? " error" : ""}`} role="status">{toast.message}</div>}
     </div>
   );
